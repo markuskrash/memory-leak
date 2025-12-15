@@ -15,7 +15,9 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.memoryleak.shared.model.ResourceType
 import com.memoryleak.shared.model.CardType
+import com.memoryleak.shared.model.UnitStatsData
 import com.memoryleak.shared.model.UnitType
+import com.badlogic.gdx.utils.Align
 
 class MemoryLeakGame : ApplicationAdapter() {
     private lateinit var shapeRenderer: ShapeRenderer
@@ -424,6 +426,64 @@ class MemoryLeakGame : ApplicationAdapter() {
                 }
             }
             
+            // VISUAL EFFECTS FOR ABILITIES
+            if (entity.type == EntityType.UNIT) {
+                // Determine effect based on unit type
+                val time = System.currentTimeMillis() / 1000f
+                
+                // 1. Encapsulation Shield (Blue Pulse)
+                if (entity.unitType == UnitType.ENCAPSULATION_SHIELD) {
+                    shapeRenderer.end()
+                    Gdx.gl.glEnable(GL20.GL_BLEND)
+                    shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
+                    val radius = 40f + Math.sin(time * 3.0).toFloat() * 2f
+                    shapeRenderer.color = Color(0.2f, 0.4f, 1f, 0.6f)
+                    shapeRenderer.circle(entity.x, entity.y, radius)
+                    shapeRenderer.end()
+                    shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+                }
+                
+                // 2. Abstraction Agent (Stealth - Translucency)
+                if (entity.unitType == UnitType.ABSTRACTION_AGENT) {
+                    // Already handled by alpha in shape color, but let's add a "mist" effect
+                    shapeRenderer.end()
+                    Gdx.gl.glEnable(GL20.GL_BLEND)
+                    shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+                    shapeRenderer.color = Color(0.8f, 0.8f, 1f, 0.2f)
+                    shapeRenderer.circle(entity.x, entity.y, 30f)
+                    shapeRenderer.end()
+                    shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+                }
+                
+                // 3. Auras (Dynamic Dispatcher, Higher Order Commander) - Pulsing Rings
+                if (entity.unitType == UnitType.DYNAMIC_DISPATCHER || entity.unitType == UnitType.HIGHER_ORDER_COMMANDER) {
+                    shapeRenderer.end()
+                    Gdx.gl.glEnable(GL20.GL_BLEND)
+                    shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
+                    
+                    val auraColor = if(entity.unitType == UnitType.DYNAMIC_DISPATCHER) Color.CYAN else Color.GOLD
+                    val maxRadius = if(entity.unitType == UnitType.HIGHER_ORDER_COMMANDER) 120f else 60f
+                    val pulse = (time * 2f) % 1f // 0 to 1 saw
+                    
+                    shapeRenderer.color = Color(auraColor.r, auraColor.g, auraColor.b, 1f - pulse)
+                    shapeRenderer.circle(entity.x, entity.y, maxRadius * pulse)
+                    
+                    shapeRenderer.end()
+                    shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+                }
+                
+                // 4. Deadlock Trap (Visible "danger" zone)
+                if (entity.unitType == UnitType.DEADLOCK_TRAP) {
+                     shapeRenderer.end()
+                    Gdx.gl.glEnable(GL20.GL_BLEND)
+                    shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
+                    shapeRenderer.color = Color(1f, 0f, 0f, 0.3f)
+                    shapeRenderer.circle(entity.x, entity.y, 60f) // Trigger radius
+                    shapeRenderer.end()
+                    shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+                }
+            }
+
             // Highlight selection Ring
             if (entity.id == selectedEntityId) {
                 shapeRenderer.end() // Switch to Line
@@ -450,14 +510,19 @@ class MemoryLeakGame : ApplicationAdapter() {
                 shapeRenderer.rect(entity.x - barWidth/2, entity.y + yOffset, barWidth * hpPct, barHeight)
             }
             
-            // Draw Laser
+            // Draw Laser / Healing Beam
             if (entity.attackingTargetId != null) {
                 val target = network.entities[entity.attackingTargetId!!]
                 if (target != null) {
                     shapeRenderer.end()
                     shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
-                    shapeRenderer.color = Color(1f, 0f, 0f, 0.6f) // Red laser
+                    
+                    val isHealer = entity.unitType == UnitType.HEALER || entity.unitType == UnitType.RESTFUL_HEALER
+                    val laserColor = if (isHealer) Color(0f, 1f, 0f, 0.6f) else Color(1f, 0f, 0f, 0.6f)
+                    
+                    shapeRenderer.color = laserColor
                     shapeRenderer.line(entity.x, entity.y, target.x, target.y)
+                    
                     shapeRenderer.end()
                     shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
                 }
@@ -470,6 +535,28 @@ class MemoryLeakGame : ApplicationAdapter() {
         batch.projectionMatrix = camera.combined
         batch.begin()
         
+        // Draw Allegiance Rings (under units) to make friend/foe clear
+        batch.end()
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        shapeRenderer.projectionMatrix = camera.combined
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
+        network.entities.values.forEach { entity ->
+            if (entity.type == EntityType.UNIT) {
+                 val isMine = entity.ownerId == network.myId
+                 val isNeutral = entity.ownerId == "0"
+                 shapeRenderer.color = when {
+                     isMine -> Color.GREEN
+                     isNeutral -> Color.GRAY
+                     else -> Color.RED
+                 }
+                 // Draw a visible ring around the unit
+                 shapeRenderer.circle(entity.x, entity.y, 14f)
+            }
+        }
+        shapeRenderer.end()
+        Gdx.gl.glDisable(GL20.GL_BLEND)
+
+        batch.begin() // Restart batch for text
         network.entities.values.forEach { entity ->
             val label = when(entity.type) {
                 EntityType.INSTANCE -> "BASE"
@@ -479,9 +566,20 @@ class MemoryLeakGame : ApplicationAdapter() {
                     ResourceType.CPU -> "CPU"
                     null -> "???"
                 }
-                EntityType.UNIT -> "UNIT"
+                EntityType.UNIT -> entity.unitType?.let { UnitStatsData.getShortName(it) } ?: "UNIT"
             }
-            labelFont.color = Color.WHITE
+            
+            // Nameplate Color based on allegiance
+            val isMine = entity.ownerId == network.myId
+            val isNeutral = entity.ownerId == "0"
+            
+            labelFont.color = when {
+                entity.type == EntityType.RESOURCE_NODE -> Color.YELLOW
+                isMine -> Color.GREEN
+                isNeutral -> Color.LIGHT_GRAY
+                else -> Color.RED // Enemy
+            }
+            
             labelFont.draw(batch, label, entity.x - 15, entity.y - 25)
         }
         
@@ -525,6 +623,18 @@ class MemoryLeakGame : ApplicationAdapter() {
                 infoY -= 20
                 val ownerName = network.players[selected.ownerId]?.name ?: "Neutral"
                 font.draw(batch, "Owner: $ownerName", 600f, infoY)
+                
+                // Show Unit Description if it's a unit
+                if (selected.type == EntityType.UNIT && selected.unitType != null) {
+                    infoY -= 30
+                    font.color = Color.YELLOW
+                    font.draw(batch, "Unit: ${UnitStatsData.getShortName(selected.unitType!!)}", 600f, infoY)
+                    infoY -= 20
+                    font.color = Color.LIGHT_GRAY
+                    val desc = UnitStatsData.getDescription(selected.unitType!!)
+                    // Simple wrapping simulation
+                    font.draw(batch, desc, 600f, infoY, 190f, Align.left, true)
+                }
             }
         }
         
@@ -578,16 +688,16 @@ class MemoryLeakGame : ApplicationAdapter() {
              font.draw(batch, "WAITING FOR OPPONENT...", 20f, yOffset)
              font.draw(batch, "(Run the client again to simulate Player 2)", 20f, yOffset - 20f)
              font.color = Color.WHITE
-        }
+         }
 
-        // Instructions (Moved higher to avoid overlap)
+        // Instructions
         yOffset = 140f  
         font.color = Color.LIGHT_GRAY
         font.draw(batch, "Controls: Click Card > Click Map to Deploy | ESC=Cancel | WASD=Camera", 20f, yOffset)
         
         batch.end()
         
-        // === CARD HAND UI (draw with ShapeRenderer + new batch) ===
+        // === CARD HAND UI ===
         val myId = network.myId
         if (myId != null) {
             val myPlayer = network.players[myId]
@@ -598,10 +708,14 @@ class MemoryLeakGame : ApplicationAdapter() {
                 val cardsStartX = (800f - (cardWidth + cardGap) * myPlayer.hand.size) / 2f
                 val cardsY = 10f
                 
+                var hoveredCardIndex = -1
+                val mouseX = Gdx.input.x.toFloat()
+                val mouseY = 600f - Gdx.input.y.toFloat() // Invert Y for UI
+                
                 // Draw card backgrounds
                 Gdx.gl.glEnable(GL20.GL_BLEND)
                 shapeRenderer.projectionMatrix = uiMatrix
-                shapeRenderer.transformMatrix.idt() // Force identity transform
+                shapeRenderer.transformMatrix.idt()
                 shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
                 
                 myPlayer.hand.forEachIndexed { index, card ->
@@ -610,15 +724,21 @@ class MemoryLeakGame : ApplicationAdapter() {
                     val isSelected = selectedCardId == card.id
                     val onCooldown = myPlayer.globalCooldown > 0
                     
+                    // Check hover
+                    if (mouseX >= cardX && mouseX <= cardX + cardWidth &&
+                        mouseY >= cardsY && mouseY <= cardsY + cardHeight) {
+                        hoveredCardIndex = index
+                    }
+                    
                      shapeRenderer.color = when {
                         isSelected -> Color(0.2f, 0.8f, 1f, 0.9f)
-                        onCooldown -> Color(0.3f, 0.3f, 0.3f, 0.5f) // Gray/Dimmed if cooldown
+                        onCooldown -> Color(0.3f, 0.3f, 0.3f, 0.5f)
                         canAfford -> Color(0.3f, 0.3f, 0.4f, 0.9f)
                         else -> Color(0.2f, 0.2f, 0.2f, 0.6f)
                     }
                     shapeRenderer.rect(cardX, cardsY, cardWidth, cardHeight)
                     
-                    // Cooldown Progress Overlay
+                    // Cooldown Progress
                     if (onCooldown) {
                         shapeRenderer.color = Color(0f, 0f, 0f, 0.5f)
                         val cooldownRatio = (myPlayer.globalCooldown / 1.5f).coerceIn(0f, 1f)
@@ -644,47 +764,15 @@ class MemoryLeakGame : ApplicationAdapter() {
                     val cardX = cardsStartX + index * (cardWidth + cardGap)
                     
                     val cardName = when(card.type) {
-                        CardType.SPAWN_SCOUT -> "SCOUT"
-                        CardType.SPAWN_TANK -> "TANK"
-                        CardType.SPAWN_RANGED -> "RANGED"
-                        CardType.SPAWN_HEALER -> "HEALER"
                         CardType.BUILD_FACTORY -> "FACTORY"
-                        
-                        // Basic Processes
-                        CardType.SPAWN_ALLOCATOR -> "ALLOC"
-                        CardType.SPAWN_GARBAGE_COLLECTOR -> "GC"
-                        CardType.SPAWN_BASIC_PROCESS -> "PROC"
-                        
-                        // OOP
-                        CardType.SPAWN_INHERITANCE_DRONE -> "INHERIT"
-                        CardType.SPAWN_POLYMORPH_WARRIOR -> "POLY"
-                        CardType.SPAWN_ENCAPSULATION_SHIELD -> "SHIELD"
-                        CardType.SPAWN_ABSTRACTION_AGENT -> "ABSTR"
-                        
-                        // Reflection
-                        CardType.SPAWN_REFLECTION_SPY -> "SPY"
-                        CardType.SPAWN_CODE_INJECTOR -> "INJECT"
-                        CardType.SPAWN_DYNAMIC_DISPATCHER -> "DISP"
-                        
-                        // Async
-                        CardType.SPAWN_COROUTINE_ARCHER -> "COROUT"
-                        CardType.SPAWN_PROMISE_KNIGHT -> "PROM"
-                        CardType.SPAWN_DEADLOCK_TRAP -> "TRAP"
-                        
-                        // Functional
-                        CardType.SPAWN_LAMBDA_SNIPER -> "LAMBDA"
-                        CardType.SPAWN_RECURSIVE_BOMB -> "REC.B"
-                        CardType.SPAWN_HIGHER_ORDER_COMMANDER -> "H.O.C"
-                        
-                        // Network
-                        CardType.SPAWN_API_GATEWAY -> "API"
-                        CardType.SPAWN_WEBSOCKET_SCOUT -> "WS"
-                        CardType.SPAWN_RESTFUL_HEALER -> "REST"
-                        
-                        // Storage
-                        CardType.SPAWN_CACHE_RUNNER -> "CACHE"
-                        CardType.SPAWN_INDEXER -> "INDEX"
-                        CardType.SPAWN_TRANSACTION_GUARD -> "TRANS"
+                        else -> {
+                           // Extract UnitType from CardType name "SPAWN_X" -> UnitType.X
+                           val typeName = card.type.name.removePrefix("SPAWN_")
+                           try {
+                               val uType = UnitType.valueOf(typeName)
+                               UnitStatsData.getShortName(uType)
+                           } catch (e: Exception) { card.type.name }
+                        }
                     }
                     
                     font.color = Color.WHITE
@@ -697,6 +785,45 @@ class MemoryLeakGame : ApplicationAdapter() {
                     font.draw(batch, "${card.cpuCost}C", cardX + 80, cardsY + 35)
                 }
                 batch.end()
+                
+                // TOOLTIP RENDER (Last, on top)
+                if (hoveredCardIndex != -1) {
+                    val card = myPlayer.hand[hoveredCardIndex]
+                    val cardX = cardsStartX + hoveredCardIndex * (cardWidth + cardGap)
+                    val tooltipW = 220f
+                    val tooltipH = 100f
+                    val tooltipX = cardX
+                    val tooltipY = cardsY + cardHeight + 10f
+                    
+                    Gdx.gl.glEnable(GL20.GL_BLEND)
+                    shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+                    shapeRenderer.color = Color(0f, 0f, 0f, 0.9f)
+                    shapeRenderer.rect(tooltipX, tooltipY, tooltipW, tooltipH)
+                    shapeRenderer.end()
+                    shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
+                    shapeRenderer.color = Color.CYAN
+                    shapeRenderer.rect(tooltipX, tooltipY, tooltipW, tooltipH)
+                    shapeRenderer.end()
+                    Gdx.gl.glDisable(GL20.GL_BLEND)
+                    
+                    batch.begin()
+                    font.color = Color.YELLOW
+                    
+                    val typeName = card.type.name.removePrefix("SPAWN_")
+                    val desc = if (card.type == CardType.BUILD_FACTORY) {
+                        "Defensive Structure.\nSpawns units."
+                    } else {
+                         try {
+                               val uType = UnitType.valueOf(typeName)
+                               val stats = UnitStatsData.getStats(uType)
+                               val d = UnitStatsData.getDescription(uType)
+                               "HP:${stats.maxHp} DMG:${stats.damage} SPD:${stats.speed.toInt()}\n$d"
+                           } catch (e: Exception) { "Unknown Unit" }
+                    }
+                    
+                    font.draw(batch, desc, tooltipX + 10, tooltipY + tooltipH - 20, tooltipW - 20, Align.left, true)
+                    batch.end()
+                }
             }
         }
     }

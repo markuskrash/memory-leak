@@ -362,8 +362,38 @@ class GameRoom {
     private suspend fun updateUnitAI(unit: GameEntity, delta: Float, currentTime: Long) {
         val stats = unit.unitType?.let { UnitStatsData.getStats(it) } ?: return
         
+        // SPECIAL BEHAVIOR: Resource Capture Units (Allocator, CacheRunner)
+        // They prioritize capturing nodes over fighting, unless attacked
+        val isCollector = unit.unitType == UnitType.ALLOCATOR || unit.unitType == UnitType.CACHE_RUNNER
+        
+        if (isCollector) {
+            // Try to find a resource node to capture first
+            val targetNode = findNearestResourceNode(unit)
+            
+            if (targetNode != null) {
+                // If we found a node to capture, go for it
+                unit.targetEnemyId = targetNode.id // Temporarily track node as "enemy" for movement
+                unit.aiState = AIState.MOVING_TO_TARGET
+                
+                // Move logic similar to below
+                val dx = targetNode.x - unit.x
+                val dy = targetNode.y - unit.y
+                val dist = Math.sqrt((dx*dx + dy*dy).toDouble()).toFloat()
+                
+                if (dist > 10f) { // Get close to capture
+                     val moveAmount = unit.speed * delta
+                     unit.x += (dx / dist) * moveAmount
+                     unit.y += (dy / dist) * moveAmount
+                }
+                
+                // If very close, we are capturing (handled by game loop resource logic)
+                return
+            }
+        }
+        
+        // STANDARD BEHAVIOR (Combat)
         // 1. Find Target (if no current target or target is dead)
-        if (unit.targetEnemyId == null || entities[unit.targetEnemyId!!] == null) {
+        if (unit.targetEnemyId == null || entities[unit.targetEnemyId!!] == null || entities[unit.targetEnemyId!!]?.type == EntityType.RESOURCE_NODE) {
             unit.targetEnemyId = findNearestEnemy(unit)
             unit.aiState = if (unit.targetEnemyId != null) AIState.MOVING_TO_TARGET else AIState.IDLE
         }
@@ -371,14 +401,6 @@ class GameRoom {
         val target = unit.targetEnemyId?.let { entities[it] }
         
         if (target == null) {
-            // No target - idle or find resource nodes for ALLOCATOR/CACHE_RUNNER
-            if (unit.unitType == UnitType.ALLOCATOR || unit.unitType == UnitType.CACHE_RUNNER) {
-                val nearestNode = findNearestResourceNode(unit)
-                if (nearestNode != null && distance(unit, nearestNode) > 25f) {
-                    unit.targetX = nearestNode.x
-                    unit.targetY = nearestNode.y
-                }
-            }
             unit.aiState = AIState.IDLE
             unit.attackingTargetId = null
             return
@@ -423,10 +445,17 @@ class GameRoom {
         triggerUnitAbility(unit, target, stats, currentTime)
     }
     
+    // Helper to find nearest non-owned resource node
+    private fun findNearestResourceNode(unit: GameEntity): GameEntity? {
+        return entities.values
+            .filter { it.type == EntityType.RESOURCE_NODE && it.ownerId != unit.ownerId }
+            .minByOrNull { distance(unit, it) }
+    }
+
     private fun findNearestEnemy(unit: GameEntity): String? {
         // Priority: Units > Factories > Instance
         val enemies = entities.values.filter { 
-            it.ownerId != unit.ownerId && it.ownerId != "0" && it.type != EntityType.RESOURCE_NODE 
+            it.ownerId != unit.ownerId && it.ownerId != "0" && it.type != EntityType.RESOURCE_NODE
         }
         
         if (enemies.isEmpty()) return null
@@ -443,12 +472,6 @@ class GameRoom {
         ))
         
         return prioritized.firstOrNull()?.id
-    }
-    
-    private fun findNearestResourceNode(unit: GameEntity): GameEntity? {
-        return entities.values
-            .filter { it.type == EntityType.RESOURCE_NODE && it.ownerId != unit.ownerId }
-            .minByOrNull { distance(unit, it) }
     }
     
     private suspend fun performAttack(attacker: GameEntity, target: GameEntity, stats: UnitStats, currentTime: Long) {

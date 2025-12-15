@@ -386,5 +386,74 @@ object UnitStatsData {
             UnitType.TRANSACTION_GUARD -> TRANSACTION_GUARD
         }
     }
+
+    fun getShortName(type: UnitType): String {
+        return when (type) {
+            UnitType.SCOUT -> "SCOUT"
+            UnitType.TANK -> "TANK"
+            UnitType.RANGED -> "RANGED"
+            UnitType.HEALER -> "HEALER"
+            UnitType.ALLOCATOR -> "ALLOC"
+            UnitType.GARBAGE_COLLECTOR -> "GC"
+            UnitType.BASIC_PROCESS -> "PROC"
+            UnitType.INHERITANCE_DRONE -> "INHERIT"
+            UnitType.POLYMORPH_WARRIOR -> "POLY"
+            UnitType.ENCAPSULATION_SHIELD -> "SHIELD"
+            UnitType.ABSTRACTION_AGENT -> "ABSTR"
+            UnitType.REFLECTION_SPY -> "SPY"
+            UnitType.CODE_INJECTOR -> "INJECT"
+            UnitType.DYNAMIC_DISPATCHER -> "DISP"
+            UnitType.COROUTINE_ARCHER -> "COROUT"
+            UnitType.PROMISE_KNIGHT -> "PROM"
+            UnitType.DEADLOCK_TRAP -> "TRAP"
+            UnitType.LAMBDA_SNIPER -> "LAMBDA"
+            UnitType.RECURSIVE_BOMB -> "REC.B"
+            UnitType.HIGHER_ORDER_COMMANDER -> "H.O.C"
+            UnitType.API_GATEWAY -> "API"
+            UnitType.WEBSOCKET_SCOUT -> "WS"
+            UnitType.RESTFUL_HEALER -> "REST"
+            UnitType.CACHE_RUNNER -> "CACHE"
+            UnitType.INDEXER -> "INDEX"
+            UnitType.TRANSACTION_GUARD -> "TRANS"
+        }
+    }
+
+    fun getDescription(type: UnitType): String {
+        return when (type) {
+            UnitType.SCOUT -> "Fast scout unit. Weak attack."
+            UnitType.TANK -> "Heavy armor, slow movement."
+            UnitType.RANGED -> "Attacks from distance."
+            UnitType.HEALER -> "Heals nearby allies."
+            
+            UnitType.ALLOCATOR -> "Captures resources. Low combat stats."
+            UnitType.GARBAGE_COLLECTOR -> "Recycles dead enemies into resources."
+            UnitType.BASIC_PROCESS -> "Standard reliable infantry."
+            
+            UnitType.INHERITANCE_DRONE -> "Absorbs stats from dead allies."
+            UnitType.POLYMORPH_WARRIOR -> "Bonus dmg vs factories/bases."
+            UnitType.ENCAPSULATION_SHIELD -> "Grants shields to allies."
+            UnitType.ABSTRACTION_AGENT -> "Hides allies from enemy vision."
+            
+            UnitType.REFLECTION_SPY -> "Reveals enemy stats."
+            UnitType.CODE_INJECTOR -> "Injects DoT bugs into factories."
+            UnitType.DYNAMIC_DISPATCHER -> "Aura: Boosts ally attack speed."
+            
+            UnitType.COROUTINE_ARCHER -> "Long range, ignores armor."
+            UnitType.PROMISE_KNIGHT -> "Explodes on death (AoE)."
+            UnitType.DEADLOCK_TRAP -> "Freezes clustered enemies."
+            
+            UnitType.LAMBDA_SNIPER -> "One-shot kill ability (long CD)."
+            UnitType.RECURSIVE_BOMB -> "Splits into smaller bombs on death."
+            UnitType.HIGHER_ORDER_COMMANDER -> "Buffs nearby allies damage."
+            
+            UnitType.API_GATEWAY -> "Extends ally attack range."
+            UnitType.WEBSOCKET_SCOUT -> "Reveals all enemies on map."
+            UnitType.RESTFUL_HEALER -> "Heals and cleanses debuffs."
+            
+            UnitType.CACHE_RUNNER -> "Super fast, captures nodes."
+            UnitType.INDEXER -> "Marks enemies for bonus damage."
+            UnitType.TRANSACTION_GUARD -> "Reverts enemy text on death."
+        }
+    }
 }
 
