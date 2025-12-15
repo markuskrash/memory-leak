@@ -9,5 +9,6 @@ fun main() {
     val config = Lwjgl3ApplicationConfiguration()
     config.setForegroundFPS(60)
     config.setTitle("Memory Leak")
+    config.setWindowedMode(800, 600)
     Lwjgl3Application(MemoryLeakGame(), config)
 }

@@ -18,6 +18,10 @@ import com.memoryleak.shared.model.CardType
 import com.memoryleak.shared.model.UnitStatsData
 import com.memoryleak.shared.model.UnitType
 import com.badlogic.gdx.utils.Align
+import com.badlogic.gdx.utils.viewport.FitViewport
+import com.badlogic.gdx.utils.viewport.Viewport
+
+import com.badlogic.gdx.utils.viewport.ExtendViewport
 
 class MemoryLeakGame : ApplicationAdapter() {
     private lateinit var shapeRenderer: ShapeRenderer
@@ -34,46 +38,72 @@ class MemoryLeakGame : ApplicationAdapter() {
     private var isPlacingCard: Boolean = false
     
     private val uiMatrix = com.badlogic.gdx.math.Matrix4()
+    private lateinit var uiViewport: Viewport
+    private lateinit var worldViewport: Viewport // NEW: Handle world aspect ratio
+
+    // State Management
+    enum class GameState { LOGIN, PLAYING }
+    private var state = GameState.LOGIN
+    private lateinit var loginScreen: com.memoryleak.core.screens.LoginScreen
 
     override fun create() {
         camera = OrthographicCamera(800f, 600f)
+
+        uiViewport = ExtendViewport(800f, 600f)
+        worldViewport = ExtendViewport(800f, 600f, camera) // Extend world view on resize
+        
         shapeRenderer = ShapeRenderer()
         batch = SpriteBatch()
         font = BitmapFont()
+        font.region.texture.setFilter(com.badlogic.gdx.graphics.Texture.TextureFilter.Linear, com.badlogic.gdx.graphics.Texture.TextureFilter.Linear)
+        
         labelFont = BitmapFont()
+        labelFont.region.texture.setFilter(com.badlogic.gdx.graphics.Texture.TextureFilter.Linear, com.badlogic.gdx.graphics.Texture.TextureFilter.Linear)
         
         font.color = Color.WHITE
         labelFont.data.setScale(0.7f)
         
+        // Center camera initially
+        // Center camera initially
         camera.position.set(400f, 300f, 0f)
         camera.update()
 
         network = NetworkClient()
-        network.connect()
+        // network.connect() // Delayed until login
+        
+        loginScreen = com.memoryleak.core.screens.LoginScreen(batch, network) { token ->
+            startGame(token)
+        }
+        
+        // Initial Input Processor is Login Stage
+        Gdx.input.inputProcessor = loginScreen.stage
+    }
+    
+    private fun startGame(token: String) {
+        state = GameState.PLAYING
+        network.connect(token)
         
         Gdx.input.inputProcessor = object : InputAdapter() {
             override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
-                // Check if clicking on cards first (screen space)
+                // 1. UI INTERACTION (Card Selection)
+                val uiTouchPos = uiViewport.unproject(Vector3(screenX.toFloat(), screenY.toFloat(), 0f))
+                val uiX = uiTouchPos.x
+                val uiY = uiTouchPos.y
+                
+                // ... (Existing Card Click Logic)
                 val myPlayer = network.players[network.myId]
                 if (myPlayer != null && myPlayer.hand.isNotEmpty()) {
-                    val cardWidth = 150f
+                     // ... Card loop (unchanged logic just using uiX/uiY)
+                     val cardWidth = 150f
                     val cardHeight = 80f
                     val cardGap = 10f
-                    val cardsStartX = (800f - (cardWidth + cardGap) * myPlayer.hand.size) / 2f
+                    val cardsStartX = (uiViewport.worldWidth - (cardWidth + cardGap) * myPlayer.hand.size) / 2f
                     val cardsY = 10f
-                    
-                    // Convert screen coordinates to UI logical coordinates (800x600)
-                    // This handles window resizing and ensures clicks match the drawn UI
-                    val uiX = screenX * (800f / Gdx.graphics.width.toFloat())
-                    // Invert Y (screen is top-down, UI is bottom-up)
-                    val uiY = (Gdx.graphics.height - screenY) * (600f / Gdx.graphics.height.toFloat())
-                    
-                    myPlayer.hand.forEachIndexed { index, card ->
+                     
+                     myPlayer.hand.forEachIndexed { index, card ->
                         val cardX = cardsStartX + index * (cardWidth + cardGap)
-                        
-                        if (uiX >= cardX && uiX <= cardX + cardWidth &&
-                            uiY >= cardsY && uiY <= cardsY + cardHeight) {
-                            // Clicked on card!
+                        if (uiX >= cardX && uiX <= cardX + cardWidth && uiY >= cardsY && uiY <= cardsY + cardHeight) {
+                             // Clicked on card!
                             val canAfford = myPlayer.memory >= card.memoryCost && myPlayer.cpu >= card.cpuCost
                             if (canAfford) {
                                 selectedCardId = card.id
@@ -86,31 +116,32 @@ class MemoryLeakGame : ApplicationAdapter() {
                                 return true
                             }
                         }
-                    }
+                     }
                 }
+
+                // 2. WORLD INTERACTION (Unit/Base Selection & Placement)
+                // Use worldViewport to correctly unproject mouse click to game world
+                val worldTouchPos = worldViewport.unproject(Vector3(screenX.toFloat(), screenY.toFloat(), 0f))
                 
                 // If placing card, deploy it
                 if (isPlacingCard && selectedCardId != null) {
-                    val worldPos = camera.unproject(Vector3(screenX.toFloat(), screenY.toFloat(), 0f))
                     network.sendCommand(CommandPacket(
                         commandType = CommandType.PLAY_CARD,
                         cardId = selectedCardId,
-                        targetX = worldPos.x,
-                        targetY = worldPos.y
+                        targetX = worldTouchPos.x,
+                        targetY = worldTouchPos.y
                     ))
-                    println("Placing card at ${worldPos.x}, ${worldPos.y}")
+                    println("Placing card at ${worldTouchPos.x}, ${worldTouchPos.y}")
                     selectedCardId = null
                     isPlacingCard = false
                     return true
                 }
                 
                 // Regular entity click
-                val worldPos = camera.unproject(Vector3(screenX.toFloat(), screenY.toFloat(), 0f))
-                
                 val clickedEntity = network.entities.values.find { entity ->
-                    val dx = entity.x - worldPos.x
-                    val dy = entity.y - worldPos.y
-                    (dx*dx + dy*dy) < 20*20
+                    val dx = entity.x - worldTouchPos.x
+                    val dy = entity.y - worldTouchPos.y
+                    (dx*dx + dy*dy) < 20*20 // Click radius 20
                 }
 
                 if (clickedEntity != null) {
@@ -122,12 +153,12 @@ class MemoryLeakGame : ApplicationAdapter() {
                     }
                 } else if (selectedEntityId != null) {
                     // Move command
-                    println("Move to ${worldPos.x}, ${worldPos.y}")
+                    println("Move to ${worldTouchPos.x}, ${worldTouchPos.y}")
                     network.sendCommand(CommandPacket(
                         commandType = CommandType.MOVE,
                         entityId = selectedEntityId,
-                        targetX = worldPos.x,
-                        targetY = worldPos.y
+                        targetX = worldTouchPos.x,
+                        targetY = worldTouchPos.y
                     ))
                 }
                 
@@ -146,38 +177,29 @@ class MemoryLeakGame : ApplicationAdapter() {
         }
     }
 
-    private fun handleCameraMovement() {
-        val cameraSpeed = 5f
-        if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.A)) {
-            camera.translate(-cameraSpeed, 0f)
-        }
-        if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.D)) {
-            camera.translate(cameraSpeed, 0f)
-        }
-        if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.W)) {
-            camera.translate(0f, cameraSpeed)
-        }
-        if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.S)) {
-            camera.translate(0f, -cameraSpeed)
-        }
-        camera.update()
-    }
-
-    private fun handleInput() {
-        // This function can be expanded for other continuous input handling
-    }
-
     override fun render() {
-        Gdx.gl.glClearColor(0.1f, 0.1f, 0.1f, 1f)
+        // Clear screen
+        Gdx.gl.glClearColor(0.1f, 0.1f, 0.12f, 1f)
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT)
         
-        handleCameraMovement()
-        handleInput()
+        if (state == GameState.LOGIN) {
+            loginScreen.render(Gdx.graphics.deltaTime)
+            return
+        }
+        
+        // 0. UPDATE CAMERA (Before any rendering!)
+        val delta = Gdx.graphics.deltaTime
+        val speed = 300f * delta
+        if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.W)) camera.translate(0f, speed)
+        if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.S)) camera.translate(0f, -speed)
+        if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.A)) camera.translate(-speed, 0f)
+        if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.D)) camera.translate(speed, 0f)
+        camera.update()
+        
+        // 1. GAME WORLD RENDER
+        // Apply world viewport to handle aspect ratio / resizing
+        worldViewport.apply()
         shapeRenderer.projectionMatrix = camera.combined
-        
-        // Draw Background
-        Gdx.gl.glClearColor(0.1f, 0.1f, 0.12f, 1f) // Darker, slightly blue background
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT)
         
         // Draw Grid (Subtler)
         Gdx.gl.glEnable(GL20.GL_BLEND)
@@ -584,72 +606,19 @@ class MemoryLeakGame : ApplicationAdapter() {
         }
         
         batch.end()
-        
-        // === SCREEN-SPACE UI ===
-        uiMatrix.setToOrtho2D(0f, 0f, 800f, 600f)
-        batch.projectionMatrix = uiMatrix
-        batch.begin()
-        
-        // ... (Game Over check, Entity info, Resources, Instructions)
-        
-        // GAME OVER CHECK
-        if (network.winnerId != null) {
-            val isWin = network.winnerId == network.myId
-            val message = if (isWin) "VICTORY!" else "DEFEAT"
-            val color = if (isWin) Color.GREEN else Color.RED
-            
-            font.color = color
-            font.data.setScale(3f)
-            font.draw(batch, message, 300f, 350f)
-            font.data.setScale(1f)
-            font.color = Color.WHITE
-            font.draw(batch, "Restart the server to play again", 280f, 250f)
-            batch.end()
-            return
-        }
-        
-        // Selected entity info panel
-        if (selectedEntityId != null) {
-            val selected = network.entities[selectedEntityId!!]
-            if (selected != null) {
-                var infoY = 550f
-                font.color = Color.CYAN
-                font.draw(batch, "=== SELECTED ===", 600f, infoY)
-                infoY -= 20
-                font.color = Color.WHITE
-                font.draw(batch, "Type: ${selected.type}", 600f, infoY)
-                infoY -= 20
-                font.draw(batch, "HP: ${selected.hp}/${selected.maxHp}", 600f, infoY)
-                infoY -= 20
-                val ownerName = network.players[selected.ownerId]?.name ?: "Neutral"
-                font.draw(batch, "Owner: $ownerName", 600f, infoY)
-                
-                // Show Unit Description if it's a unit
-                if (selected.type == EntityType.UNIT && selected.unitType != null) {
-                    infoY -= 30
-                    font.color = Color.YELLOW
-                    font.draw(batch, "Unit: ${UnitStatsData.getShortName(selected.unitType!!)}", 600f, infoY)
-                    infoY -= 20
-                    font.color = Color.LIGHT_GRAY
-                    val desc = UnitStatsData.getDescription(selected.unitType!!)
-                    // Simple wrapping simulation
-                    font.draw(batch, desc, 600f, infoY, 190f, Align.left, true)
-                }
-            }
-        }
-        
-        batch.end()
-        
+
         // === SPAWN RADIUS VISUALIZATION ===
         if (isPlacingCard) {
             val myBase = network.entities.values.find { it.ownerId == network.myId && it.type == EntityType.INSTANCE }
             if (myBase != null) {
                 Gdx.gl.glEnable(GL20.GL_BLEND)
+                // World Viewport is still active here
                 shapeRenderer.projectionMatrix = camera.combined
                 shapeRenderer.transformMatrix.idt()
                 shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
                 
-                val mousePos = camera.unproject(Vector3(Gdx.input.x.toFloat(), Gdx.input.y.toFloat(), 0f))
+                // Use world viewport for unproject
+                val mousePos = worldViewport.unproject(Vector3(Gdx.input.x.toFloat(), Gdx.input.y.toFloat(), 0f))
                 val dx = mousePos.x - myBase.x
                 val dy = mousePos.y - myBase.y
                 val distSq = dx*dx + dy*dy
@@ -667,10 +636,74 @@ class MemoryLeakGame : ApplicationAdapter() {
             }
         }
         
-        uiMatrix.setToOrtho2D(0f, 0f, 800f, 600f)
-        batch.projectionMatrix = uiMatrix
+        // === SCREEN-SPACE UI ===
+        // === SCREEN-SPACE UI ===
+        uiViewport.apply()
+        batch.projectionMatrix = uiViewport.camera.combined
+        shapeRenderer.projectionMatrix = uiViewport.camera.combined
         batch.begin()
-        var yOffset = 580f
+        
+        // ... (Game Over check, Entity info, Resources, Instructions)
+        
+        // GAME OVER CHECK
+        if (network.winnerId != null) {
+            val isWin = network.winnerId == network.myId
+            val message = if (isWin) "VICTORY!" else "DEFEAT"
+            val color = if (isWin) Color.GREEN else Color.RED
+            
+            // Re-apply projection in case it changed
+            batch.projectionMatrix = uiViewport.camera.combined
+            
+            font.color = color
+            font.data.setScale(3f)
+            font.draw(batch, message, 300f, 350f)
+            font.data.setScale(1f)
+            font.color = Color.WHITE
+            font.draw(batch, "Restart the server to play again", 280f, 250f)
+            batch.end()
+            return
+        }
+        
+        // Selected entity info panel
+        if (selectedEntityId != null) {
+            val selected = network.entities[selectedEntityId!!]
+            if (selected != null) {
+                var infoY = uiViewport.worldHeight - 50f
+                val infoX = uiViewport.worldWidth - 200f
+                font.color = Color.CYAN
+                font.draw(batch, "=== SELECTED ===", infoX, infoY)
+                infoY -= 20
+                font.color = Color.WHITE
+                font.draw(batch, "Type: ${selected.type}", infoX, infoY)
+                infoY -= 20
+                font.draw(batch, "HP: ${selected.hp}/${selected.maxHp}", infoX, infoY)
+                infoY -= 20
+                val ownerName = network.players[selected.ownerId]?.name ?: "Neutral"
+                font.draw(batch, "Owner: $ownerName", infoX, infoY)
+                
+                // Show Unit Description if it's a unit
+                if (selected.type == EntityType.UNIT && selected.unitType != null) {
+                    infoY -= 30
+                    font.color = Color.YELLOW
+                    font.draw(batch, "Unit: ${UnitStatsData.getShortName(selected.unitType!!)}", infoX, infoY)
+                    infoY -= 20
+                    font.color = Color.LIGHT_GRAY
+                    val desc = UnitStatsData.getDescription(selected.unitType!!)
+                    // Simple wrapping simulation
+                    font.draw(batch, desc, infoX, infoY, 190f, Align.left, true)
+                }
+            }
+        }
+        
+        batch.end()
+        
+
+        
+        // Reset to UI viewport for HUD
+        uiViewport.apply()
+        batch.projectionMatrix = uiViewport.camera.combined
+        batch.begin()
+        var yOffset = uiViewport.worldHeight - 20f
         font.color = Color.WHITE
         font.draw(batch, "FPS: ${Gdx.graphics.framesPerSecond}", 20f, yOffset)
         network.players.values.forEach { player ->
@@ -705,16 +738,21 @@ class MemoryLeakGame : ApplicationAdapter() {
                 val cardWidth = 150f
                 val cardHeight = 80f
                 val cardGap = 10f
-                val cardsStartX = (800f - (cardWidth + cardGap) * myPlayer.hand.size) / 2f
+                val cardsStartX = (uiViewport.worldWidth - (cardWidth + cardGap) * myPlayer.hand.size) / 2f
                 val cardsY = 10f
                 
                 var hoveredCardIndex = -1
-                val mouseX = Gdx.input.x.toFloat()
-                val mouseY = 600f - Gdx.input.y.toFloat() // Invert Y for UI
+                
+                
+                // Scale mouse to virtual 800x600 UI using viewport
+                val mousePos = uiViewport.unproject(Vector3(Gdx.input.x.toFloat(), Gdx.input.y.toFloat(), 0f))
+                val mouseX = mousePos.x
+                val mouseY = mousePos.y
+
                 
                 // Draw card backgrounds
                 Gdx.gl.glEnable(GL20.GL_BLEND)
-                shapeRenderer.projectionMatrix = uiMatrix
+                shapeRenderer.projectionMatrix = uiViewport.camera.combined
                 shapeRenderer.transformMatrix.idt()
                 shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
                 
@@ -758,7 +796,7 @@ class MemoryLeakGame : ApplicationAdapter() {
                 Gdx.gl.glDisable(GL20.GL_BLEND)
                 
                 // Card text
-                batch.projectionMatrix = uiMatrix
+                batch.projectionMatrix = uiViewport.camera.combined
                 batch.begin()
                 myPlayer.hand.forEachIndexed { index, card ->
                     val cardX = cardsStartX + index * (cardWidth + cardGap)
@@ -792,10 +830,12 @@ class MemoryLeakGame : ApplicationAdapter() {
                     val cardX = cardsStartX + hoveredCardIndex * (cardWidth + cardGap)
                     val tooltipW = 220f
                     val tooltipH = 100f
-                    val tooltipX = cardX
-                    val tooltipY = cardsY + cardHeight + 10f
+                    // Center tooltip above the card
+                    val tooltipX = cardX + (cardWidth - tooltipW) / 2f
+                    val tooltipY = cardsY + cardHeight + 15f
                     
                     Gdx.gl.glEnable(GL20.GL_BLEND)
+                    shapeRenderer.projectionMatrix = uiViewport.camera.combined
                     shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
                     shapeRenderer.color = Color(0f, 0f, 0f, 0.9f)
                     shapeRenderer.rect(tooltipX, tooltipY, tooltipW, tooltipH)
@@ -806,6 +846,7 @@ class MemoryLeakGame : ApplicationAdapter() {
                     shapeRenderer.end()
                     Gdx.gl.glDisable(GL20.GL_BLEND)
                     
+                    batch.projectionMatrix = uiViewport.camera.combined
                     batch.begin()
                     font.color = Color.YELLOW
                     
@@ -832,6 +873,17 @@ class MemoryLeakGame : ApplicationAdapter() {
         shapeRenderer.dispose()
         batch.dispose()
         font.dispose()
+        labelFont.dispose()
+        shapeRenderer.dispose()
         network.dispose()
+        if (::loginScreen.isInitialized) loginScreen.dispose()
+    }
+
+    override fun resize(width: Int, height: Int) {
+        if (state == GameState.LOGIN) {
+            loginScreen.resize(width, height)
+        }
+        uiViewport.update(width, height, true)
+        worldViewport.update(width, height, true) // Center camera
     }
 }

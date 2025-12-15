@@ -6,6 +6,8 @@ import io.ktor.client.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.http.*
 import io.ktor.websocket.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.*
@@ -26,10 +28,11 @@ class NetworkClient(private val host: String = "127.0.0.1") {
     private var session: DefaultClientWebSocketSession? = null
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    fun connect() {
+    fun connect(token: String) {
         scope.launch {
             try {
-                client.webSocket(method = HttpMethod.Get, host = host, port = 8080, path = "/game") {
+                // Connect with token in query param
+                client.webSocket(method = HttpMethod.Get, host = host, port = 8080, path = "/game?token=$token") {
                     session = this
                     println("Connected to server")
                     
@@ -43,6 +46,48 @@ class NetworkClient(private val host: String = "127.0.0.1") {
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+    }
+
+    suspend fun login(username: String, pass: String): String? {
+        return try {
+            val response = client.post("http://$host:8080/api/auth/login") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"username":"$username","password":"$pass"}""") // Manual JSON
+            }
+            if (response.status == HttpStatusCode.OK) {
+                val json = response.bodyAsText()
+                // Simple parsing to avoid dependency issues if ContentNegotiation plugin is missing
+                // Expecting {"token":"..."}
+                val token = json.substringAfter("token\":\"").substringBefore("\"")
+                token
+            } else {
+                println("Login failed: ${response.status}")
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun register(username: String, pass: String): String? {
+        return try {
+            val response = client.post("http://$host:8080/api/auth/register") {
+                contentType(ContentType.Application.Json)
+                setBody("""{"username":"$username","password":"$pass"}""")
+            }
+            if (response.status == HttpStatusCode.OK) {
+                val json = response.bodyAsText()
+                val token = json.substringAfter("token\":\"").substringBefore("\"")
+                token
+            } else {
+                println("Register failed: ${response.status}")
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 

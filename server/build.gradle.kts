@@ -15,6 +15,19 @@ dependencies {
     implementation("io.ktor:ktor-server-content-negotiation:$ktor_version")
     implementation("io.ktor:ktor-serialization-kotlinx-json:$ktor_version")
     implementation("ch.qos.logback:logback-classic:$logback_version")
+    
+    // Database
+    implementation("org.jetbrains.exposed:exposed-core:0.41.1")
+    implementation("org.jetbrains.exposed:exposed-dao:0.41.1")
+    implementation("org.jetbrains.exposed:exposed-jdbc:0.41.1")
+    implementation("org.postgresql:postgresql:42.6.0")
+    implementation("com.zaxxer:HikariCP:5.1.0")
+    
+    // Redis
+    implementation("redis.clients:jedis:5.0.0")
+    
+    // Auth & Utils
+    implementation("at.favre.lib:bcrypt:0.10.2")
 }
 
 application {
