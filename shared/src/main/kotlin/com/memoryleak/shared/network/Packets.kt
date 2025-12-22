@@ -30,7 +30,7 @@ data class CommandPacket(
     val entityId: String? = null, 
     val targetX: Float = 0f, 
     val targetY: Float = 0f,
-    val cardId: String? = null  // For PLAY_CARD command
+    val cardId: String? = null
 ) : Packet()
 
 @Serializable

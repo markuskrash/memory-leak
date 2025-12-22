@@ -27,21 +27,21 @@ class MemoryLeakGame : ApplicationAdapter() {
     private lateinit var shapeRenderer: ShapeRenderer
     private lateinit var camera: OrthographicCamera
     private lateinit var network: NetworkClient
-    // UI
+
     private lateinit var batch: SpriteBatch
     private lateinit var font: BitmapFont
     private lateinit var labelFont: BitmapFont
     
-    // Selection state
+
     private var selectedEntityId: String? = null
     private var selectedCardId: String? = null
     private var isPlacingCard: Boolean = false
     
     private val uiMatrix = com.badlogic.gdx.math.Matrix4()
     private lateinit var uiViewport: Viewport
-    private lateinit var worldViewport: Viewport // NEW: Handle world aspect ratio
+    private lateinit var worldViewport: Viewport
 
-    // State Management
+
     enum class GameState { LOGIN, PLAYING }
     private var state = GameState.LOGIN
     private lateinit var loginScreen: com.memoryleak.core.screens.LoginScreen
@@ -50,7 +50,7 @@ class MemoryLeakGame : ApplicationAdapter() {
         camera = OrthographicCamera(800f, 600f)
 
         uiViewport = ExtendViewport(800f, 600f)
-        worldViewport = ExtendViewport(800f, 600f, camera) // Extend world view on resize
+        worldViewport = ExtendViewport(800f, 600f, camera)
         
         shapeRenderer = ShapeRenderer()
         batch = SpriteBatch()
@@ -63,19 +63,19 @@ class MemoryLeakGame : ApplicationAdapter() {
         font.color = Color.WHITE
         labelFont.data.setScale(0.7f)
         
-        // Center camera initially
-        // Center camera initially
+
+
         camera.position.set(400f, 300f, 0f)
         camera.update()
 
         network = NetworkClient()
-        // network.connect() // Delayed until login
+
         
         loginScreen = com.memoryleak.core.screens.LoginScreen(batch, network) { token ->
             startGame(token)
         }
         
-        // Initial Input Processor is Login Stage
+
         Gdx.input.inputProcessor = loginScreen.stage
     }
     
@@ -85,15 +85,15 @@ class MemoryLeakGame : ApplicationAdapter() {
         
         Gdx.input.inputProcessor = object : InputAdapter() {
             override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
-                // 1. UI INTERACTION (Card Selection)
+
                 val uiTouchPos = uiViewport.unproject(Vector3(screenX.toFloat(), screenY.toFloat(), 0f))
                 val uiX = uiTouchPos.x
                 val uiY = uiTouchPos.y
                 
-                // ... (Existing Card Click Logic)
+
                 val myPlayer = network.players[network.myId]
                 if (myPlayer != null && myPlayer.hand.isNotEmpty()) {
-                     // ... Card loop (unchanged logic just using uiX/uiY)
+
                      val cardWidth = 150f
                     val cardHeight = 80f
                     val cardGap = 10f
@@ -103,12 +103,12 @@ class MemoryLeakGame : ApplicationAdapter() {
                      myPlayer.hand.forEachIndexed { index, card ->
                         val cardX = cardsStartX + index * (cardWidth + cardGap)
                         if (uiX >= cardX && uiX <= cardX + cardWidth && uiY >= cardsY && uiY <= cardsY + cardHeight) {
-                             // Clicked on card!
+
                             val canAfford = myPlayer.memory >= card.memoryCost && myPlayer.cpu >= card.cpuCost
                             if (canAfford) {
                                 selectedCardId = card.id
                                 isPlacingCard = true
-                                selectedEntityId = null  // Deselect entity
+                                selectedEntityId = null
                                 println("Selected card: ${card.type}")
                                 return true
                             } else {
@@ -119,11 +119,11 @@ class MemoryLeakGame : ApplicationAdapter() {
                      }
                 }
 
-                // 2. WORLD INTERACTION (Unit/Base Selection & Placement)
-                // Use worldViewport to correctly unproject mouse click to game world
+
+
                 val worldTouchPos = worldViewport.unproject(Vector3(screenX.toFloat(), screenY.toFloat(), 0f))
                 
-                // If placing card, deploy it
+
                 if (isPlacingCard && selectedCardId != null) {
                     network.sendCommand(CommandPacket(
                         commandType = CommandType.PLAY_CARD,
@@ -137,11 +137,11 @@ class MemoryLeakGame : ApplicationAdapter() {
                     return true
                 }
                 
-                // Regular entity click
+
                 val clickedEntity = network.entities.values.find { entity ->
                     val dx = entity.x - worldTouchPos.x
                     val dy = entity.y - worldTouchPos.y
-                    (dx*dx + dy*dy) < 20*20 // Click radius 20
+                    (dx*dx + dy*dy) < 20*20
                 }
 
                 if (clickedEntity != null) {
@@ -152,7 +152,7 @@ class MemoryLeakGame : ApplicationAdapter() {
                         println("Selected: ${clickedEntity.id}")
                     }
                 } else if (selectedEntityId != null) {
-                    // Move command
+
                     println("Move to ${worldTouchPos.x}, ${worldTouchPos.y}")
                     network.sendCommand(CommandPacket(
                         commandType = CommandType.MOVE,
@@ -167,7 +167,7 @@ class MemoryLeakGame : ApplicationAdapter() {
 
             override fun keyUp(keycode: Int): Boolean {
                 if (keycode == com.badlogic.gdx.Input.Keys.ESCAPE) {
-                    // Cancel card placement
+
                     selectedCardId = null
                     isPlacingCard = false
                 }
@@ -178,7 +178,7 @@ class MemoryLeakGame : ApplicationAdapter() {
     }
 
     override fun render() {
-        // Clear screen
+
         Gdx.gl.glClearColor(0.1f, 0.1f, 0.12f, 1f)
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT)
         
@@ -187,7 +187,7 @@ class MemoryLeakGame : ApplicationAdapter() {
             return
         }
         
-        // 0. UPDATE CAMERA (Before any rendering!)
+
         val delta = Gdx.graphics.deltaTime
         val speed = 300f * delta
         if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.W)) camera.translate(0f, speed)
@@ -196,16 +196,16 @@ class MemoryLeakGame : ApplicationAdapter() {
         if (Gdx.input.isKeyPressed(com.badlogic.gdx.Input.Keys.D)) camera.translate(speed, 0f)
         camera.update()
         
-        // 1. GAME WORLD RENDER
-        // Apply world viewport to handle aspect ratio / resizing
+
+
         worldViewport.apply()
         shapeRenderer.projectionMatrix = camera.combined
         
-        // Draw Grid (Subtler)
+
         Gdx.gl.glEnable(GL20.GL_BLEND)
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
-        shapeRenderer.color = Color(1f, 1f, 1f, 0.1f) // Very faint white
+        shapeRenderer.color = Color(1f, 1f, 1f, 0.1f)
         for(i in 0..800 step 50) {
             shapeRenderer.line(i.toFloat(), 0f, i.toFloat(), 600f)
         }
@@ -214,30 +214,30 @@ class MemoryLeakGame : ApplicationAdapter() {
         }
         shapeRenderer.end()
 
-        // Draw Entities
+
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
         
         network.entities.values.forEach { entity ->
-            // Custom Colors & Shapes
+
             when(entity.type) {
                 EntityType.INSTANCE -> {
-                    shapeRenderer.color = Color(0.2f, 0.8f, 1f, 1f) // Cyan-ish
-                    shapeRenderer.rect(entity.x - 20, entity.y - 20, 40f, 40f) // Square Base
-                    // Inner core
+                    shapeRenderer.color = Color(0.2f, 0.8f, 1f, 1f)
+                    shapeRenderer.rect(entity.x - 20, entity.y - 20, 40f, 40f)
+
                     shapeRenderer.color = Color(0f, 0.4f, 0.8f, 1f)
                     shapeRenderer.rect(entity.x - 10, entity.y - 10, 20f, 20f)
                 }
                 EntityType.RESOURCE_NODE -> {
-                    // Color depends on owner
+
                     if (entity.ownerId == "0") {
-                        shapeRenderer.color = Color(1f, 0.8f, 0f, 1f) // Gold (neutral)
+                        shapeRenderer.color = Color(1f, 0.8f, 0f, 1f)
                     } else if (entity.ownerId == network.myId) {
-                        shapeRenderer.color = Color(0.2f, 1f, 0.2f, 1f) // Green (friendly)
+                        shapeRenderer.color = Color(0.2f, 1f, 0.2f, 1f)
                     } else {
-                        shapeRenderer.color = Color(1f, 0.2f, 0.2f, 1f) // Red (enemy)
+                        shapeRenderer.color = Color(1f, 0.2f, 0.2f, 1f)
                     }
                     
-                    // Diamond shape
+
                     shapeRenderer.triangle(
                         entity.x, entity.y + 15,
                         entity.x - 15, entity.y,
@@ -250,8 +250,8 @@ class MemoryLeakGame : ApplicationAdapter() {
                     )
                 }
                 EntityType.FACTORY -> {
-                    shapeRenderer.color = Color(0.8f, 0.2f, 1f, 1f) // Purple
-                    // Triangle
+                    shapeRenderer.color = Color(0.8f, 0.2f, 1f, 1f)
+
                     shapeRenderer.triangle(
                         entity.x, entity.y + 20,
                         entity.x - 20, entity.y - 15,
@@ -259,20 +259,20 @@ class MemoryLeakGame : ApplicationAdapter() {
                     )
                 }
                 EntityType.UNIT -> {
-                    // Color and shape based on unit type category
+
                     val unitType = entity.unitType
                     when {
-                        // Legacy units
+
                         unitType == UnitType.SCOUT -> {
-                            shapeRenderer.color = Color(0.5f, 1f, 0.5f, 1f)  // Light green
+                            shapeRenderer.color = Color(0.5f, 1f, 0.5f, 1f)
                             shapeRenderer.circle(entity.x, entity.y, 8f)
                         }
                         unitType == UnitType.TANK -> {
-                            shapeRenderer.color = Color(0.3f, 0.6f, 0.3f, 1f)  // Dark green
+                            shapeRenderer.color = Color(0.3f, 0.6f, 0.3f, 1f)
                             shapeRenderer.rect(entity.x - 12, entity.y - 12, 24f, 24f)
                         }
                         unitType == UnitType.RANGED -> {
-                            shapeRenderer.color = Color(0.6f, 0.8f, 1f, 1f)  // Light blue
+                            shapeRenderer.color = Color(0.6f, 0.8f, 1f, 1f)
                             shapeRenderer.triangle(
                                 entity.x, entity.y + 10,
                                 entity.x - 10, entity.y - 10,
@@ -280,25 +280,25 @@ class MemoryLeakGame : ApplicationAdapter() {
                             )
                         }
                         unitType == UnitType.HEALER || unitType == UnitType.RESTFUL_HEALER -> {
-                            shapeRenderer.color = Color(1f, 0.8f, 1f, 1f)  // Pink
+                            shapeRenderer.color = Color(1f, 0.8f, 1f, 1f)
                             shapeRenderer.circle(entity.x, entity.y, 10f)
                             shapeRenderer.color = Color(0.8f, 0f, 0.8f, 1f)
                             shapeRenderer.circle(entity.x, entity.y, 3f)
                         }
                         
-                        // Basic Processes - Gray tones
+
                         unitType == UnitType.ALLOCATOR || unitType == UnitType.GARBAGE_COLLECTOR || unitType == UnitType.BASIC_PROCESS -> {
-                            shapeRenderer.color = Color(0.6f, 0.6f, 0.6f, 1f)  // Gray
+                            shapeRenderer.color = Color(0.6f, 0.6f, 0.6f, 1f)
                             shapeRenderer.circle(entity.x, entity.y, 9f)
                             if (unitType == UnitType.ALLOCATOR) {
-                                shapeRenderer.color = Color(1f, 0.9f, 0f, 1f)  // Gold center (memory)
+                                shapeRenderer.color = Color(1f, 0.9f, 0f, 1f)
                                 shapeRenderer.circle(entity.x, entity.y, 4f)
                             }
                         }
                         
-                        // OOP Units - Multi-colored, layered
+
                         unitType == UnitType.INHERITANCE_DRONE -> {
-                            shapeRenderer.color = Color(1f, 0.5f, 0f, 1f)  // Orange
+                            shapeRenderer.color = Color(1f, 0.5f, 0f, 1f)
                             shapeRenderer.circle(entity.x, entity.y, 11f)
                             shapeRenderer.color = Color(1f, 0.7f, 0.2f, 1f)
                             shapeRenderer.circle(entity.x, entity.y, 7f)
@@ -306,26 +306,26 @@ class MemoryLeakGame : ApplicationAdapter() {
                             shapeRenderer.circle(entity.x, entity.y, 3f)
                         }
                         unitType == UnitType.POLYMORPH_WARRIOR -> {
-                            shapeRenderer.color = Color(0.8f, 0.2f, 1f, 1f)  // Purple
-                            shapeRenderer.rect(entity.x - 10, entity.y - 10, 20f, 20f)  // Square morphs
+                            shapeRenderer.color = Color(0.8f, 0.2f, 1f, 1f)
+                            shapeRenderer.rect(entity.x - 10, entity.y - 10, 20f, 20f)
                         }
                         unitType == UnitType.ENCAPSULATION_SHIELD -> {
-                            shapeRenderer.color = Color(0.2f, 0.4f, 1f, 1f)  // Blue
+                            shapeRenderer.color = Color(0.2f, 0.4f, 1f, 1f)
                             shapeRenderer.rect(entity.x - 12, entity.y - 12, 24f, 24f)
-                            // Inner protected core
+
                             shapeRenderer.color = Color(0.4f, 0.6f, 1f, 1f)
                             shapeRenderer.rect(entity.x - 6, entity.y - 6, 12f, 12f)
                         }
                         unitType == UnitType.ABSTRACTION_AGENT -> {
-                            shapeRenderer.color = Color(0.5f, 0.5f, 1f, 0.5f)  // Translucent blue
+                            shapeRenderer.color = Color(0.5f, 0.5f, 1f, 0.5f)
                             shapeRenderer.circle(entity.x, entity.y, 10f)
                         }
                         
-                        // Reflection & Metaprogramming - Cyan/Teal
+
                         unitType == UnitType.REFLECTION_SPY -> {
-                            shapeRenderer.color = Color(0f, 1f, 1f, 1f)  // Cyan
+                            shapeRenderer.color = Color(0f, 1f, 1f, 1f)
                             shapeRenderer.circle(entity.x, entity.y, 8f)
-                            // Radar lines
+
                             shapeRenderer.end()
                             shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
                             shapeRenderer.color = Color(0f, 1f, 1f, 0.6f)
@@ -335,7 +335,7 @@ class MemoryLeakGame : ApplicationAdapter() {
                             shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
                         }
                         unitType == UnitType.CODE_INJECTOR -> {
-                            shapeRenderer.color = Color(1f, 0f, 1f, 1f)  // Magenta
+                            shapeRenderer.color = Color(1f, 0f, 1f, 1f)
                             shapeRenderer.triangle(
                                 entity.x, entity.y + 11,
                                 entity.x - 11, entity.y - 6,
@@ -343,16 +343,16 @@ class MemoryLeakGame : ApplicationAdapter() {
                             )
                         }
                         unitType == UnitType.DYNAMIC_DISPATCHER -> {
-                            shapeRenderer.color = Color(0f, 0.8f, 0.8f, 1f)  // Teal
+                            shapeRenderer.color = Color(0f, 0.8f, 0.8f, 1f)
                             shapeRenderer.circle(entity.x, entity.y, 11f)
-                            // Pulsating rings
+
                             shapeRenderer.color = Color(0f, 0.8f, 0.8f, 0.4f)
                             shapeRenderer.circle(entity.x, entity.y, 16f)
                         }
                         
-                        // Async & Parallelism - Yellow/Orange
+
                         unitType == UnitType.COROUTINE_ARCHER -> {
-                            shapeRenderer.color = Color(1f, 0.8f, 0f, 1f)  // Gold
+                            shapeRenderer.color = Color(1f, 0.8f, 0f, 1f)
                             shapeRenderer.triangle(
                                 entity.x, entity.y + 10,
                                 entity.x - 8, entity.y - 8,
@@ -360,13 +360,13 @@ class MemoryLeakGame : ApplicationAdapter() {
                             )
                         }
                         unitType == UnitType.PROMISE_KNIGHT -> {
-                            shapeRenderer.color = Color(1f, 0.6f, 0f, 1f)  // Orange
+                            shapeRenderer.color = Color(1f, 0.6f, 0f, 1f)
                             shapeRenderer.rect(entity.x - 11, entity.y - 11, 22f, 22f)
                         }
                         unitType == UnitType.DEADLOCK_TRAP -> {
-                            shapeRenderer.color = Color(1f, 0f, 0f, 0.8f)  // Red (dangerous)
+                            shapeRenderer.color = Color(1f, 0f, 0f, 0.8f)
                             shapeRenderer.circle(entity.x, entity.y, 7f)
-                            // X mark
+
                             shapeRenderer.end()
                             shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
                             shapeRenderer.line(entity.x - 10, entity.y - 10, entity.x + 10, entity.y + 10)
@@ -375,10 +375,10 @@ class MemoryLeakGame : ApplicationAdapter() {
                             shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
                         }
                         
-                        // Functional Programming - Sharp geometric
+
                         unitType == UnitType.LAMBDA_SNIPER -> {
-                            shapeRenderer.color = Color(1f, 1f, 0f, 1f)  // Bright yellow
-                            // Lambda symbol approximation (triangle pointing right)
+                            shapeRenderer.color = Color(1f, 1f, 0f, 1f)
+
                             shapeRenderer.triangle(
                                 entity.x - 8, entity.y + 12,
                                 entity.x - 8, entity.y - 12,
@@ -386,23 +386,23 @@ class MemoryLeakGame : ApplicationAdapter() {
                             )
                         }
                         unitType == UnitType.RECURSIVE_BOMB -> {
-                            shapeRenderer.color = Color(1f, 0.2f, 0f, 1f)  // Red-orange
+                            shapeRenderer.color = Color(1f, 0.2f, 0f, 1f)
                             shapeRenderer.circle(entity.x, entity.y, 9f)
                             shapeRenderer.color = Color(0.8f, 0f, 0f, 1f)
                             shapeRenderer.circle(entity.x, entity.y, 5f)
                         }
                         unitType == UnitType.HIGHER_ORDER_COMMANDER -> {
-                            shapeRenderer.color = Color(1f, 0.8f, 0.2f, 1f)  // Golden
+                            shapeRenderer.color = Color(1f, 0.8f, 0.2f, 1f)
                             shapeRenderer.rect(entity.x - 13, entity.y - 13, 26f, 26f)
                             shapeRenderer.color = Color(1f, 1f, 0.5f, 1f)
                             shapeRenderer.rect(entity.x - 8, entity.y - 8, 16f, 16f)
                         }
                         
-                        // Network & Communication - Antenna shapes
+
                         unitType == UnitType.API_GATEWAY -> {
-                            shapeRenderer.color = Color(0.3f, 1f, 0.5f, 1f)  // Green
+                            shapeRenderer.color = Color(0.3f, 1f, 0.5f, 1f)
                             shapeRenderer.rect(entity.x - 10, entity.y - 10, 20f, 20f)
-                            // Antenna lines
+
                             shapeRenderer.end()
                             shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
                             shapeRenderer.line(entity.x, entity.y + 10, entity.x, entity.y + 18)
@@ -411,9 +411,9 @@ class MemoryLeakGame : ApplicationAdapter() {
                             shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
                         }
                         unitType == UnitType.WEBSOCKET_SCOUT -> {
-                            shapeRenderer.color = Color(0.2f, 1f, 0.2f, 1f)  // Bright green
+                            shapeRenderer.color = Color(0.2f, 1f, 0.2f, 1f)
                             shapeRenderer.circle(entity.x, entity.y, 8f)
-                            // Signal waves
+
                             shapeRenderer.end()
                             shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
                             shapeRenderer.color = Color(0.2f, 1f, 0.2f, 0.4f)
@@ -423,24 +423,24 @@ class MemoryLeakGame : ApplicationAdapter() {
                             shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
                         }
                         
-                        // Storage Units - Box shapes
+
                         unitType == UnitType.CACHE_RUNNER -> {
-                            shapeRenderer.color = Color(0.9f, 0.9f, 0.9f, 1f)  // Silver (fast)
+                            shapeRenderer.color = Color(0.9f, 0.9f, 0.9f, 1f)
                             shapeRenderer.rect(entity.x - 6, entity.y - 6, 12f, 12f)
                         }
                         unitType == UnitType.INDEXER -> {
-                            shapeRenderer.color = Color(0.7f, 0.5f, 0.3f, 1f)  // Brown
+                            shapeRenderer.color = Color(0.7f, 0.5f, 0.3f, 1f)
                             shapeRenderer.rect(entity.x - 9, entity.y - 9, 18f, 18f)
                             shapeRenderer.color = Color(0.9f, 0.7f, 0.5f, 1f)
                             shapeRenderer.rect(entity.x - 5, entity.y - 5, 10f, 10f)
                         }
                         unitType == UnitType.TRANSACTION_GUARD -> {
-                            shapeRenderer.color = Color(0.5f, 0.5f, 0.8f, 1f)  // Blue-gray
+                            shapeRenderer.color = Color(0.5f, 0.5f, 0.8f, 1f)
                             shapeRenderer.rect(entity.x - 11, entity.y - 11, 22f, 22f)
                         }
                         
                         else -> {
-                            // Default for unknown units
+
                             shapeRenderer.color = Color(0.3f, 1f, 0.3f, 1f)
                             shapeRenderer.circle(entity.x, entity.y, 10f)
                         }
@@ -448,12 +448,12 @@ class MemoryLeakGame : ApplicationAdapter() {
                 }
             }
             
-            // VISUAL EFFECTS FOR ABILITIES
+
             if (entity.type == EntityType.UNIT) {
-                // Determine effect based on unit type
+
                 val time = System.currentTimeMillis() / 1000f
                 
-                // 1. Encapsulation Shield (Blue Pulse)
+
                 if (entity.unitType == UnitType.ENCAPSULATION_SHIELD) {
                     shapeRenderer.end()
                     Gdx.gl.glEnable(GL20.GL_BLEND)
@@ -465,9 +465,9 @@ class MemoryLeakGame : ApplicationAdapter() {
                     shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
                 }
                 
-                // 2. Abstraction Agent (Stealth - Translucency)
+
                 if (entity.unitType == UnitType.ABSTRACTION_AGENT) {
-                    // Already handled by alpha in shape color, but let's add a "mist" effect
+
                     shapeRenderer.end()
                     Gdx.gl.glEnable(GL20.GL_BLEND)
                     shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
@@ -477,7 +477,7 @@ class MemoryLeakGame : ApplicationAdapter() {
                     shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
                 }
                 
-                // 3. Auras (Dynamic Dispatcher, Higher Order Commander) - Pulsing Rings
+
                 if (entity.unitType == UnitType.DYNAMIC_DISPATCHER || entity.unitType == UnitType.HIGHER_ORDER_COMMANDER) {
                     shapeRenderer.end()
                     Gdx.gl.glEnable(GL20.GL_BLEND)
@@ -485,7 +485,7 @@ class MemoryLeakGame : ApplicationAdapter() {
                     
                     val auraColor = if(entity.unitType == UnitType.DYNAMIC_DISPATCHER) Color.CYAN else Color.GOLD
                     val maxRadius = if(entity.unitType == UnitType.HIGHER_ORDER_COMMANDER) 120f else 60f
-                    val pulse = (time * 2f) % 1f // 0 to 1 saw
+                    val pulse = (time * 2f) % 1f
                     
                     shapeRenderer.color = Color(auraColor.r, auraColor.g, auraColor.b, 1f - pulse)
                     shapeRenderer.circle(entity.x, entity.y, maxRadius * pulse)
@@ -494,45 +494,45 @@ class MemoryLeakGame : ApplicationAdapter() {
                     shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
                 }
                 
-                // 4. Deadlock Trap (Visible "danger" zone)
+
                 if (entity.unitType == UnitType.DEADLOCK_TRAP) {
                      shapeRenderer.end()
                     Gdx.gl.glEnable(GL20.GL_BLEND)
                     shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
                     shapeRenderer.color = Color(1f, 0f, 0f, 0.3f)
-                    shapeRenderer.circle(entity.x, entity.y, 60f) // Trigger radius
+                    shapeRenderer.circle(entity.x, entity.y, 60f)
                     shapeRenderer.end()
                     shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
                 }
             }
 
-            // Highlight selection Ring
+
             if (entity.id == selectedEntityId) {
-                shapeRenderer.end() // Switch to Line
+                shapeRenderer.end()
                 shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
                 shapeRenderer.color = Color.WHITE
                 shapeRenderer.circle(entity.x, entity.y, 25f)
-                shapeRenderer.end() // Switch back to Filled
+                shapeRenderer.end()
                 shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
             }
             
-            // HP Bar (Modern)
+
             if (entity.type != EntityType.RESOURCE_NODE) {
                 val hpPct = entity.hp.toFloat() / entity.maxHp.toFloat()
                 val barWidth = 40f
                 val barHeight = 4f
                 val yOffset = 30f
                 
-                // Background
+
                 shapeRenderer.color = Color(0.2f, 0f, 0f, 0.8f)
                 shapeRenderer.rect(entity.x - barWidth/2, entity.y + yOffset, barWidth, barHeight)
                 
-                // Health
+
                 shapeRenderer.color = Color(0.2f, 1f, 0.2f, 0.8f)
                 shapeRenderer.rect(entity.x - barWidth/2, entity.y + yOffset, barWidth * hpPct, barHeight)
             }
             
-            // Draw Laser / Healing Beam
+
             if (entity.attackingTargetId != null) {
                 val target = network.entities[entity.attackingTargetId!!]
                 if (target != null) {
@@ -553,11 +553,11 @@ class MemoryLeakGame : ApplicationAdapter() {
         shapeRenderer.end()
         Gdx.gl.glDisable(GL20.GL_BLEND)
         
-        // === WORLD-SPACE TEXT (Entity Labels) ===
+
         batch.projectionMatrix = camera.combined
         batch.begin()
         
-        // Draw Allegiance Rings (under units) to make friend/foe clear
+
         batch.end()
         Gdx.gl.glEnable(GL20.GL_BLEND)
         shapeRenderer.projectionMatrix = camera.combined
@@ -571,14 +571,14 @@ class MemoryLeakGame : ApplicationAdapter() {
                      isNeutral -> Color.GRAY
                      else -> Color.RED
                  }
-                 // Draw a visible ring around the unit
+
                  shapeRenderer.circle(entity.x, entity.y, 14f)
             }
         }
         shapeRenderer.end()
         Gdx.gl.glDisable(GL20.GL_BLEND)
 
-        batch.begin() // Restart batch for text
+        batch.begin()
         network.entities.values.forEach { entity ->
             val label = when(entity.type) {
                 EntityType.INSTANCE -> "BASE"
@@ -591,7 +591,7 @@ class MemoryLeakGame : ApplicationAdapter() {
                 EntityType.UNIT -> entity.unitType?.let { UnitStatsData.getShortName(it) } ?: "UNIT"
             }
             
-            // Nameplate Color based on allegiance
+
             val isMine = entity.ownerId == network.myId
             val isNeutral = entity.ownerId == "0"
             
@@ -599,7 +599,7 @@ class MemoryLeakGame : ApplicationAdapter() {
                 entity.type == EntityType.RESOURCE_NODE -> Color.YELLOW
                 isMine -> Color.GREEN
                 isNeutral -> Color.LIGHT_GRAY
-                else -> Color.RED // Enemy
+                else -> Color.RED
             }
             
             labelFont.draw(batch, label, entity.x - 15, entity.y - 25)
@@ -607,22 +607,22 @@ class MemoryLeakGame : ApplicationAdapter() {
         
         batch.end()
 
-        // === SPAWN RADIUS VISUALIZATION ===
+
         if (isPlacingCard) {
             val myBase = network.entities.values.find { it.ownerId == network.myId && it.type == EntityType.INSTANCE }
             if (myBase != null) {
                 Gdx.gl.glEnable(GL20.GL_BLEND)
-                // World Viewport is still active here
+
                 shapeRenderer.projectionMatrix = camera.combined
                 shapeRenderer.transformMatrix.idt()
                 shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
                 
-                // Use world viewport for unproject
+
                 val mousePos = worldViewport.unproject(Vector3(Gdx.input.x.toFloat(), Gdx.input.y.toFloat(), 0f))
                 val dx = mousePos.x - myBase.x
                 val dy = mousePos.y - myBase.y
                 val distSq = dx*dx + dy*dy
-                val maxDist = 200f // Match server logic
+                val maxDist = 200f
                 
                 if (distSq <= maxDist * maxDist) {
                     shapeRenderer.color = Color.GREEN
@@ -636,22 +636,22 @@ class MemoryLeakGame : ApplicationAdapter() {
             }
         }
         
-        // === SCREEN-SPACE UI ===
-        // === SCREEN-SPACE UI ===
+
+
         uiViewport.apply()
         batch.projectionMatrix = uiViewport.camera.combined
         shapeRenderer.projectionMatrix = uiViewport.camera.combined
         batch.begin()
         
-        // ... (Game Over check, Entity info, Resources, Instructions)
+
         
-        // GAME OVER CHECK
+
         if (network.winnerId != null) {
             val isWin = network.winnerId == network.myId
             val message = if (isWin) "VICTORY!" else "DEFEAT"
             val color = if (isWin) Color.GREEN else Color.RED
             
-            // Re-apply projection in case it changed
+
             batch.projectionMatrix = uiViewport.camera.combined
             
             font.color = color
@@ -664,7 +664,7 @@ class MemoryLeakGame : ApplicationAdapter() {
             return
         }
         
-        // Selected entity info panel
+
         if (selectedEntityId != null) {
             val selected = network.entities[selectedEntityId!!]
             if (selected != null) {
@@ -681,7 +681,7 @@ class MemoryLeakGame : ApplicationAdapter() {
                 val ownerName = network.players[selected.ownerId]?.name ?: "Neutral"
                 font.draw(batch, "Owner: $ownerName", infoX, infoY)
                 
-                // Show Unit Description if it's a unit
+
                 if (selected.type == EntityType.UNIT && selected.unitType != null) {
                     infoY -= 30
                     font.color = Color.YELLOW
@@ -689,7 +689,7 @@ class MemoryLeakGame : ApplicationAdapter() {
                     infoY -= 20
                     font.color = Color.LIGHT_GRAY
                     val desc = UnitStatsData.getDescription(selected.unitType!!)
-                    // Simple wrapping simulation
+
                     font.draw(batch, desc, infoX, infoY, 190f, Align.left, true)
                 }
             }
@@ -699,7 +699,7 @@ class MemoryLeakGame : ApplicationAdapter() {
         
 
         
-        // Reset to UI viewport for HUD
+
         uiViewport.apply()
         batch.projectionMatrix = uiViewport.camera.combined
         batch.begin()
@@ -723,14 +723,14 @@ class MemoryLeakGame : ApplicationAdapter() {
              font.color = Color.WHITE
          }
 
-        // Instructions
+
         yOffset = 140f  
         font.color = Color.LIGHT_GRAY
         font.draw(batch, "Controls: Click Card > Click Map to Deploy | ESC=Cancel | WASD=Camera", 20f, yOffset)
         
         batch.end()
         
-        // === CARD HAND UI ===
+
         val myId = network.myId
         if (myId != null) {
             val myPlayer = network.players[myId]
@@ -744,13 +744,13 @@ class MemoryLeakGame : ApplicationAdapter() {
                 var hoveredCardIndex = -1
                 
                 
-                // Scale mouse to virtual 800x600 UI using viewport
+
                 val mousePos = uiViewport.unproject(Vector3(Gdx.input.x.toFloat(), Gdx.input.y.toFloat(), 0f))
                 val mouseX = mousePos.x
                 val mouseY = mousePos.y
 
                 
-                // Draw card backgrounds
+
                 Gdx.gl.glEnable(GL20.GL_BLEND)
                 shapeRenderer.projectionMatrix = uiViewport.camera.combined
                 shapeRenderer.transformMatrix.idt()
@@ -762,7 +762,7 @@ class MemoryLeakGame : ApplicationAdapter() {
                     val isSelected = selectedCardId == card.id
                     val onCooldown = myPlayer.globalCooldown > 0
                     
-                    // Check hover
+
                     if (mouseX >= cardX && mouseX <= cardX + cardWidth &&
                         mouseY >= cardsY && mouseY <= cardsY + cardHeight) {
                         hoveredCardIndex = index
@@ -776,7 +776,7 @@ class MemoryLeakGame : ApplicationAdapter() {
                     }
                     shapeRenderer.rect(cardX, cardsY, cardWidth, cardHeight)
                     
-                    // Cooldown Progress
+
                     if (onCooldown) {
                         shapeRenderer.color = Color(0f, 0f, 0f, 0.5f)
                         val cooldownRatio = (myPlayer.globalCooldown / 1.5f).coerceIn(0f, 1f)
@@ -785,7 +785,7 @@ class MemoryLeakGame : ApplicationAdapter() {
                 }
                 shapeRenderer.end()
                 
-                // Card borders
+
                 shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
                 myPlayer.hand.forEachIndexed { index, card ->
                     val cardX = cardsStartX + index * (cardWidth + cardGap)
@@ -795,7 +795,7 @@ class MemoryLeakGame : ApplicationAdapter() {
                 shapeRenderer.end()
                 Gdx.gl.glDisable(GL20.GL_BLEND)
                 
-                // Card text
+
                 batch.projectionMatrix = uiViewport.camera.combined
                 batch.begin()
                 myPlayer.hand.forEachIndexed { index, card ->
@@ -804,7 +804,7 @@ class MemoryLeakGame : ApplicationAdapter() {
                     val cardName = when(card.type) {
                         CardType.BUILD_FACTORY -> "FACTORY"
                         else -> {
-                           // Extract UnitType from CardType name "SPAWN_X" -> UnitType.X
+
                            val typeName = card.type.name.removePrefix("SPAWN_")
                            try {
                                val uType = UnitType.valueOf(typeName)
@@ -824,13 +824,13 @@ class MemoryLeakGame : ApplicationAdapter() {
                 }
                 batch.end()
                 
-                // TOOLTIP RENDER (Last, on top)
+
                 if (hoveredCardIndex != -1) {
                     val card = myPlayer.hand[hoveredCardIndex]
                     val cardX = cardsStartX + hoveredCardIndex * (cardWidth + cardGap)
                     val tooltipW = 220f
                     val tooltipH = 100f
-                    // Center tooltip above the card
+
                     val tooltipX = cardX + (cardWidth - tooltipW) / 2f
                     val tooltipY = cardsY + cardHeight + 15f
                     
@@ -884,6 +884,6 @@ class MemoryLeakGame : ApplicationAdapter() {
             loginScreen.resize(width, height)
         }
         uiViewport.update(width, height, true)
-        worldViewport.update(width, height, true) // Center camera
+        worldViewport.update(width, height, true)
     }
 }

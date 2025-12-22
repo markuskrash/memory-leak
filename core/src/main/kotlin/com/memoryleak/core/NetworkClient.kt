@@ -17,8 +17,8 @@ class NetworkClient(private val host: String = "127.0.0.1") {
     private val client = HttpClient {
         install(WebSockets)
     }
-    
-    // Thread-safe store for latest state
+
+
     val entities = ConcurrentHashMap<String, GameEntity>()
     val players = ConcurrentHashMap<String, com.memoryleak.shared.model.PlayerState>()
 
@@ -31,7 +31,7 @@ class NetworkClient(private val host: String = "127.0.0.1") {
     fun connect(token: String) {
         scope.launch {
             try {
-                // Connect with token in query param
+
                 client.webSocket(method = HttpMethod.Get, host = host, port = 8080, path = "/game?token=$token") {
                     session = this
                     println("Connected to server")
@@ -53,12 +53,12 @@ class NetworkClient(private val host: String = "127.0.0.1") {
         return try {
             val response = client.post("http://$host:8080/api/auth/login") {
                 contentType(ContentType.Application.Json)
-                setBody("""{"username":"$username","password":"$pass"}""") // Manual JSON
+                setBody("""{"username":"$username","password":"$pass"}""")
             }
             if (response.status == HttpStatusCode.OK) {
                 val json = response.bodyAsText()
-                // Simple parsing to avoid dependency issues if ContentNegotiation plugin is missing
-                // Expecting {"token":"..."}
+
+
                 val token = json.substringAfter("token\":\"").substringBefore("\"")
                 token
             } else {
@@ -102,22 +102,22 @@ class NetworkClient(private val host: String = "127.0.0.1") {
                     println("My ID is $myId")
                 }
                 is StateUpdatePacket -> {
-                    // Update local state
-                    // Simple full sync: remove missing, update existing
+
+
                     val currentIds = packet.entities.map { it.id }.toSet()
-                    
-                    // Update/Add
+
+
                     packet.entities.forEach { entity ->
                         entities[entity.id] = entity
                     }
-                    
-                    // Update Players
+
+
                     players.clear()
                     packet.players.forEach { player ->
                         players[player.id] = player
                     }
-                    
-                    // Remove old (optional for MVP, might flicker)
+
+
                     entities.keys.filter { !currentIds.contains(it) }.forEach { 
                         entities.remove(it)
                     }
@@ -137,7 +137,7 @@ class NetworkClient(private val host: String = "127.0.0.1") {
 
     fun sendCommand(cmd: CommandPacket) {
         scope.launch {
-            val json = Json.encodeToString<Packet>(cmd) // use Packet as base for polymorphism
+            val json = Json.encodeToString<Packet>(cmd)
             session?.send(Frame.Text(json))
         }
     }

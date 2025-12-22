@@ -27,7 +27,7 @@ object CameraController {
             moved = true
         }
         
-        // Clamp camera to reasonable bounds
+
         camera.position.x = camera.position.x.coerceIn(100f, 1200f)
         camera.position.y = camera.position.y.coerceIn(100f, 700f)
         

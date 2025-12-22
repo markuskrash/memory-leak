@@ -7,11 +7,11 @@ enum class EntityType {
 }
 
 enum class AIState {
-    IDLE,           // No target, looking for one
-    MOVING_TO_TARGET,  // Moving towards enemy
-    ATTACKING,      // In range, attacking
-    USING_ABILITY,  // Executing special ability
-    RETREATING      // Low HP, moving away
+    IDLE,
+    MOVING_TO_TARGET,
+    ATTACKING,
+    USING_ABILITY,
+    RETREATING
 }
 
 enum class ResourceType {
@@ -24,25 +24,25 @@ data class GameEntity(
     val type: EntityType,
     var x: Float,
     var y: Float,
-    var ownerId: String, // "0" for neutral
+    var ownerId: String,
     var hp: Int,
     val maxHp: Int,
-    // Specific fields using nullable props for MVP simplicity
+
     var resourceType: ResourceType? = null,
     var resourceAmount: Int = 0,
     var attackingTargetId: String? = null,
-    // Movement
+
     var targetX: Float? = null,
     var targetY: Float? = null,
-    var speed: Float = 100f,  // pixels per second
-    var unitType: UnitType? = null,  // For typed units
-    var lastAttackTime: Long = 0L,    // For attack cooldown
-    // AI State for autonomous units
+    var speed: Float = 100f,
+    var unitType: UnitType? = null,
+    var lastAttackTime: Long = 0L,
+
     var aiState: AIState = AIState.IDLE,
-    var targetEnemyId: String? = null,  // Current AI target
-    var lastAbilityTime: Long = 0L,     // For ability cooldown
-    var abilityData: String = "",        // JSON for unit-specific state
-    var inheritedStats: String = ""      // For InheritanceDrone (stores absorbed stats)
+    var targetEnemyId: String? = null,
+    var lastAbilityTime: Long = 0L,
+    var abilityData: String = "",
+    var inheritedStats: String = ""
 )
 
 @Serializable
@@ -54,7 +54,7 @@ data class PlayerState(
     var deck: MutableList<Card> = mutableListOf(),
     var hand: MutableList<Card> = mutableListOf(),
     var discardPile: MutableList<Card> = mutableListOf(),
-    var globalCooldown: Float = 0f // Seconds until next card can be played
+    var globalCooldown: Float = 0f
 )
 
 @Serializable

@@ -4,45 +4,45 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class CardType {
-    // Legacy cards
+
     SPAWN_SCOUT,
     SPAWN_TANK,
     SPAWN_RANGED,
     SPAWN_HEALER,
     BUILD_FACTORY,
     
-    // Basic Process cards
+
     SPAWN_ALLOCATOR,
     SPAWN_GARBAGE_COLLECTOR,
     SPAWN_BASIC_PROCESS,
     
-    // OOP cards
+
     SPAWN_INHERITANCE_DRONE,
     SPAWN_POLYMORPH_WARRIOR,
     SPAWN_ENCAPSULATION_SHIELD,
     SPAWN_ABSTRACTION_AGENT,
     
-    // Reflection & Metaprogramming cards
+
     SPAWN_REFLECTION_SPY,
     SPAWN_CODE_INJECTOR,
     SPAWN_DYNAMIC_DISPATCHER,
     
-    // Async & Parallelism cards
+
     SPAWN_COROUTINE_ARCHER,
     SPAWN_PROMISE_KNIGHT,
     SPAWN_DEADLOCK_TRAP,
     
-    // Functional Programming cards
+
     SPAWN_LAMBDA_SNIPER,
     SPAWN_RECURSIVE_BOMB,
     SPAWN_HIGHER_ORDER_COMMANDER,
     
-    // Network & Communication cards
+
     SPAWN_API_GATEWAY,
     SPAWN_WEBSOCKET_SCOUT,
     SPAWN_RESTFUL_HEALER,
     
-    // Storage cards
+
     SPAWN_CACHE_RUNNER,
     SPAWN_INDEXER,
     SPAWN_TRANSACTION_GUARD
@@ -50,47 +50,47 @@ enum class CardType {
 
 @Serializable
 enum class UnitType {
-    // Legacy types (keeping for backward compatibility)
+
     SCOUT,
     TANK,
     RANGED,
     HEALER,
     
-    // Basic Processes
-    ALLOCATOR,          // Captures resource nodes, generates Memory passively
-    GARBAGE_COLLECTOR,  // Cleans up dead units, returns resources
-    BASIC_PROCESS,      // Cheap infantry unit
+
+    ALLOCATOR,
+    GARBAGE_COLLECTOR,
+    BASIC_PROCESS,
     
-    // OOP Units
-    INHERITANCE_DRONE,      // Absorbs stats from dead allies (inheritance)
-    POLYMORPH_WARRIOR,      // Changes attack type based on enemy (polymorphism)
-    ENCAPSULATION_SHIELD,   // Creates protective barrier (encapsulation)
-    ABSTRACTION_AGENT,      // Hides allies from detection (abstraction)
+
+    INHERITANCE_DRONE,
+    POLYMORPH_WARRIOR,
+    ENCAPSULATION_SHIELD,
+    ABSTRACTION_AGENT,
     
-    // Reflection & Metaprogramming
-    REFLECTION_SPY,     // Scans enemy units, reveals stats
-    CODE_INJECTOR,      // Injects bugs into enemy factories
-    DYNAMIC_DISPATCHER, // Boosts nearby ally attack speed
+
+    REFLECTION_SPY,
+    CODE_INJECTOR,
+    DYNAMIC_DISPATCHER,
     
-    // Async & Parallelism
-    COROUTINE_ARCHER,   // Fires async arrows that ignore armor
-    PROMISE_KNIGHT,     // Deals delayed damage on death
-    DEADLOCK_TRAP,      // Immobilizes clustered enemies
+
+    COROUTINE_ARCHER,
+    PROMISE_KNIGHT,
+    DEADLOCK_TRAP,
     
-    // Functional Programming
-    LAMBDA_SNIPER,          // One-shot pure function, high damage
-    RECURSIVE_BOMB,         // Splits into smaller bombs on death
-    HIGHER_ORDER_COMMANDER, // Buffs other units (higher-order function)
+
+    LAMBDA_SNIPER,
+    RECURSIVE_BOMB,
+    HIGHER_ORDER_COMMANDER,
     
-    // Network & Communication
-    API_GATEWAY,        // Extends ally attack range (routing)
-    WEBSOCKET_SCOUT,    // Continuously reveals enemy positions
-    RESTFUL_HEALER,     // GET=diagnose, POST=heal, PUT=buff, DELETE=cleanse
+
+    API_GATEWAY,
+    WEBSOCKET_SCOUT,
+    RESTFUL_HEALER,
     
-    // Storage Units
-    CACHE_RUNNER,       // Very fast, low HP, captures cache nodes
-    INDEXER,            // Marks targets for bonus damage
-    TRANSACTION_GUARD   // Reverts node capture on death (rollback)
+
+    CACHE_RUNNER,
+    INDEXER,
+    TRANSACTION_GUARD
 }
 
 @Serializable
@@ -99,7 +99,7 @@ data class Card(
     val type: CardType,
     val memoryCost: Int,
     val cpuCost: Int,
-    var cooldownRemaining: Float = 0f  // seconds
+    var cooldownRemaining: Float = 0f
 )
 
 @Serializable
@@ -109,11 +109,11 @@ data class UnitStats(
     val speed: Float,
     val damage: Int,
     val attackRange: Float,
-    val attackSpeed: Float  // attacks per second
+    val attackSpeed: Float
 )
 
 object UnitStatsData {
-    // Legacy units (backward compatibility)
+
     val SCOUT = UnitStats(
         type = UnitType.SCOUT,
         maxHp = 30,
@@ -150,14 +150,14 @@ object UnitStatsData {
         attackSpeed = 2.0f
     )
     
-    // === BASIC PROCESSES ===
+
     val ALLOCATOR = UnitStats(
         type = UnitType.ALLOCATOR,
         maxHp = 40,
         speed = 60f,
         damage = 2,
         attackRange = 30f,
-        attackSpeed = 0.5f  // Weak attacker, focuses on capturing
+        attackSpeed = 0.5f
     )
     
     val GARBAGE_COLLECTOR = UnitStats(
@@ -178,21 +178,21 @@ object UnitStatsData {
         attackSpeed = 1.2f
     )
     
-    // === OOP UNITS ===
+
     val INHERITANCE_DRONE = UnitStats(
         type = UnitType.INHERITANCE_DRONE,
         maxHp = 45,
         speed = 85f,
         damage = 7,
         attackRange = 50f,
-        attackSpeed = 1.0f  // Ability: Absorbs stats from dead allies
+        attackSpeed = 1.0f
     )
     
     val POLYMORPH_WARRIOR = UnitStats(
         type = UnitType.POLYMORPH_WARRIOR,
         maxHp = 80,
         speed = 75f,
-        damage = 12,  // Changes based on enemy type
+        damage = 12,
         attackRange = 55f,
         attackSpeed = 1.1f
     )
@@ -203,7 +203,7 @@ object UnitStatsData {
         speed = 40f,
         damage = 3,
         attackRange = 40f,
-        attackSpeed = 0.5f  // Tank role, creates shield for allies
+        attackSpeed = 0.5f
     )
     
     val ABSTRACTION_AGENT = UnitStats(
@@ -212,17 +212,17 @@ object UnitStatsData {
         speed = 110f,
         damage = 4,
         attackRange = 50f,
-        attackSpeed = 0.8f  // Support: hides allies
+        attackSpeed = 0.8f
     )
     
-    // === REFLECTION & METAPROGRAMMING ===
+
     val REFLECTION_SPY = UnitStats(
         type = UnitType.REFLECTION_SPY,
         maxHp = 25,
         speed = 130f,
         damage = 1,
         attackRange = 100f,
-        attackSpeed = 0.3f  // Very weak combat, strong scouting
+        attackSpeed = 0.3f
     )
     
     val CODE_INJECTOR = UnitStats(
@@ -231,7 +231,7 @@ object UnitStatsData {
         speed = 95f,
         damage = 10,
         attackRange = 70f,
-        attackSpeed = 0.7f  // Special ability targets factories
+        attackSpeed = 0.7f
     )
     
     val DYNAMIC_DISPATCHER = UnitStats(
@@ -240,15 +240,15 @@ object UnitStatsData {
         speed = 80f,
         damage = 5,
         attackRange = 50f,
-        attackSpeed = 1.5f  // Aura: boosts ally attack speed
+        attackSpeed = 1.5f
     )
     
-    // === ASYNC & PARALLELISM ===
+
     val COROUTINE_ARCHER = UnitStats(
         type = UnitType.COROUTINE_ARCHER,
         maxHp = 38,
         speed = 95f,
-        damage = 18,  // High damage, ignores some armor
+        damage = 18,
         attackRange = 130f,
         attackSpeed = 0.9f
     )
@@ -259,7 +259,7 @@ object UnitStatsData {
         speed = 65f,
         damage = 11,
         attackRange = 50f,
-        attackSpeed = 1.0f  // On death: delayed AoE damage
+        attackSpeed = 1.0f
     )
     
     val DEADLOCK_TRAP = UnitStats(
@@ -268,17 +268,17 @@ object UnitStatsData {
         speed = 120f,
         damage = 2,
         attackRange = 60f,
-        attackSpeed = 0.5f  // Ability: immobilizes clustered enemies
+        attackSpeed = 0.5f
     )
     
-    // === FUNCTIONAL PROGRAMMING ===
+
     val LAMBDA_SNIPER = UnitStats(
         type = UnitType.LAMBDA_SNIPER,
         maxHp = 30,
         speed = 70f,
-        damage = 50,  // One-shot ability
+        damage = 50,
         attackRange = 150f,
-        attackSpeed = 0.2f  // Very slow, but devastating
+        attackSpeed = 0.2f
     )
     
     val RECURSIVE_BOMB = UnitStats(
@@ -287,7 +287,7 @@ object UnitStatsData {
         speed = 100f,
         damage = 8,
         attackRange = 40f,
-        attackSpeed = 1.0f  // Splits into smaller bombs on death
+        attackSpeed = 1.0f
     )
     
     val HIGHER_ORDER_COMMANDER = UnitStats(
@@ -296,17 +296,17 @@ object UnitStatsData {
         speed = 60f,
         damage = 6,
         attackRange = 60f,
-        attackSpeed = 0.8f  // Buffs nearby units
+        attackSpeed = 0.8f
     )
     
-    // === NETWORK & COMMUNICATION ===
+
     val API_GATEWAY = UnitStats(
         type = UnitType.API_GATEWAY,
         maxHp = 65,
         speed = 50f,
         damage = 4,
         attackRange = 70f,
-        attackSpeed = 0.6f  // Extends ally attack range
+        attackSpeed = 0.6f
     )
     
     val WEBSOCKET_SCOUT = UnitStats(
@@ -315,7 +315,7 @@ object UnitStatsData {
         speed = 140f,
         damage = 3,
         attackRange = 90f,
-        attackSpeed = 0.7f  // Continuously reveals enemy positions
+        attackSpeed = 0.7f
     )
     
     val RESTFUL_HEALER = UnitStats(
@@ -324,14 +324,14 @@ object UnitStatsData {
         speed = 85f,
         damage = 0,
         attackRange = 90f,
-        attackSpeed = 1.8f  // GET/POST/PUT/DELETE healing logic
+        attackSpeed = 1.8f
     )
     
-    // === STORAGE UNITS ===
+
     val CACHE_RUNNER = UnitStats(
         type = UnitType.CACHE_RUNNER,
         maxHp = 20,
-        speed = 180f,  // Fastest unit
+        speed = 180f,
         damage = 4,
         attackRange = 35f,
         attackSpeed = 1.5f
@@ -343,7 +343,7 @@ object UnitStatsData {
         speed = 75f,
         damage = 5,
         attackRange = 80f,
-        attackSpeed = 0.9f  // Marks targets for bonus damage
+        attackSpeed = 0.9f
     )
     
     val TRANSACTION_GUARD = UnitStats(
@@ -352,10 +352,10 @@ object UnitStatsData {
         speed = 55f,
         damage = 7,
         attackRange = 50f,
-        attackSpeed = 0.8f  // Reverts capture on death
+        attackSpeed = 0.8f
     )
     
-    // Helper function to get stats by type
+
     fun getStats(type: UnitType): UnitStats {
         return when (type) {
             UnitType.SCOUT -> SCOUT

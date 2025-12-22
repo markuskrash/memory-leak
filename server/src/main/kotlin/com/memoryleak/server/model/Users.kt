@@ -14,6 +14,6 @@ object Users : Table() {
 data class User(
     val id: String,
     val username: String,
-    val passwordHash: String, // Internal use only
+    val passwordHash: String,
     val rating: Int
 )
