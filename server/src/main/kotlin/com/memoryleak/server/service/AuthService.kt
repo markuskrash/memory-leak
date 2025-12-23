@@ -5,6 +5,7 @@ import com.memoryleak.server.database.RedisClient
 import com.memoryleak.server.model.User
 import com.memoryleak.server.model.Users
 import at.favre.lib.crypto.bcrypt.BCrypt
+import com.memoryleak.server.model.UserEntity
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
@@ -22,10 +23,9 @@ class AuthService {
         val newId = UUID.randomUUID().toString()
         
         dbQuery {
-            Users.insert {
-                it[Users.id] = newId
-                it[Users.username] = username
-                it[Users.passwordHash] = hashedPassword
+            UserEntity.new {
+                this.username = username
+                this.passwordHash = hashedPassword
             }
         }
         
@@ -33,16 +33,17 @@ class AuthService {
     }
 
     suspend fun login(username: String, password: String): String? {
-        val row = dbQuery {
-            Users.select { Users.username eq username }.singleOrNull()
+        val user = dbQuery {
+            UserEntity.find { Users.username eq username }.singleOrNull()
         } ?: return null
 
-        val storedHash = row[Users.passwordHash]
+        val storedHash = user.passwordHash
+
         val result = BCrypt.verifyer().verify(password.toCharArray(), storedHash)
 
         if (result.verified) {
             val token = UUID.randomUUID().toString()
-            val userId = row[Users.id]
+            val userId = user.id.value.toString()
             RedisClient.setSession(token, userId)
             return token
         }
@@ -52,10 +53,11 @@ class AuthService {
     fun verifyToken(token: String): String? {
         return RedisClient.getSession(token)
     }
-    
+
     suspend fun getUsername(userId: String): String? {
         return dbQuery {
-            Users.select { Users.id eq userId }.singleOrNull()?.get(Users.username)
+            UserEntity.findById(UUID.fromString(userId))
+                ?.username
         }
     }
 }

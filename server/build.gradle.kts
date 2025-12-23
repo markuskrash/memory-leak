@@ -15,6 +15,9 @@ dependencies {
     implementation("io.ktor:ktor-server-content-negotiation:$ktor_version")
     implementation("io.ktor:ktor-serialization-kotlinx-json:$ktor_version")
     implementation("ch.qos.logback:logback-classic:$logback_version")
+
+    implementation("io.insert-koin:koin-ktor:3.5.3")
+    implementation("io.insert-koin:koin-logger-slf4j:3.5.3")
     
     // Database
     implementation("org.jetbrains.exposed:exposed-core:0.41.1")
